@@ -6,11 +6,11 @@
   "author": "liujia02 <bit_liujia@163.com>",
   "license": "MIT",
   "dependencies": {
-    "egg": "^2.26.0",
-    "egg-bin": "^4.14.1",
-    "egg-cors": "^2.2.3"
+    "formidable": "^1.2.2",
+    "koa": "^2.11.0",
+    "koa-router": "^8.0.8"
   },
   "scripts": {
-    "dev": "egg-bin dev"
+    "dev": "pm2 start app/index.js --watch"
   }
 }

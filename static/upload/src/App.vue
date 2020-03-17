@@ -13,24 +13,57 @@
 
 <script>
   import axios from 'axios'
+  const size = 30 * 1024 // 1k = 1024
 
 export default {
   name: 'app',
   data() {
     return {
-      file: null
+      file: null,
+      fileList: []
     }
   },
   methods:{
     beforeUpload(file) {
+      // split
+      const fileChunkList = [];
+      let cur = 0;
+      while (cur < file.size) {
+        const chunkFile  = file.slice(cur, cur + size)
+        chunkFile.name = file.name
+        fileChunkList.push(chunkFile);
+        cur += size;
+      }
+      this.fileList = fileChunkList
       this.file = file
       return false
     },
     upload() {
       axios.defaults.headers.post['Content-Type'] = 'multipart/form-data';
-      const data = new FormData()
-      data.append('filesss', this.file)
-      axios.post('http://localhost:3000/upload', data)
+      Promise.all(this.fileList.map((file, index)=> {
+        return this.uploadFile(file, index)
+      })).then(res => {
+        axios.post('http://localhost:3000/merge_upload', {
+          name: this.file.name,
+          size
+        })
+      })
+    },
+    uploadFile(file, index) {
+      return new Promise(resolve => {
+        const data = new FormData()
+        // the blob
+        data.append('chunk', file)
+        // file name
+        data.append('name', this.file.name)
+        // index
+        data.append('index', index)
+        // total length
+        data.append('total', this.fileList.length)
+        axios.post('http://localhost:3000/upload', data).then(res=> {
+          resolve(res)
+        })
+      })
     }
   }
 }

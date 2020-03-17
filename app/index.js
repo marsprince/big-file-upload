@@ -4,8 +4,9 @@ const app = new Koa();
 const router = new Router();
 const cors = require('./koa-cors')
 const formidable = require('formidable');
-const fs =require('fs')
-const path = require('path')
+const bodyparser = require('./bodyparser')
+const rename = require('./util').rename
+const merge = require('./util').merge;
 
 router.post('/upload', async (ctx, next) => {
   // ctx.router available
@@ -31,7 +32,11 @@ router.post('/upload', async (ctx, next) => {
         reject(err);
         return;
       }
-
+      // mkdir
+      // rename
+      rename(files, fields)
+      // fields => expect file
+      // files => all file
       ctx.set('Content-Type', 'application/json');
       ctx.status = 200;
       ctx.state = { fields, files };
@@ -41,6 +46,14 @@ router.post('/upload', async (ctx, next) => {
   });
   await next();
 });
+
+router.post('/merge_upload', bodyparser, async (ctx, next) => {
+  // merge
+  merge(ctx.request.body)
+  ctx.set('Content-Type', 'application/json');
+  ctx.body = ctx.request.body
+})
+
 app.use(cors)
 app
 .use(router.routes())

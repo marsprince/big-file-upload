@@ -8,12 +8,13 @@
       <el-button style="margin-left: 10px;" size="small" type="success" @click="upload">上传到服务器</el-button>
       <div slot="tip" class="el-upload__tip">只能上传jpg/png文件，且不超过500kb</div>
     </el-upload>
+    <el-progress :text-inside="true" :stroke-width="26" :percentage="percentage"></el-progress>
   </div>
 </template>
 
 <script>
   import axios from 'axios'
-  const size = 30 * 1024 // 1k = 1024
+  const size = 100 * 1024 * 1024 // 1k = 1024
 
 export default {
   name: 'app',
@@ -21,6 +22,14 @@ export default {
     return {
       file: null,
       fileList: []
+    }
+  },
+  computed: {
+    // 总体百分比由每个blob百分比* size/totalSize计算
+    percentage() {
+      return this.fileList.length === 0 ? 0 : this.fileList.reduce((pre, item)=>{
+        return pre + item.percentage * item.chunk.size / this.file.size
+      }, 0)
     }
   },
   methods:{
@@ -31,7 +40,10 @@ export default {
       while (cur < file.size) {
         const chunkFile  = file.slice(cur, cur + size)
         chunkFile.name = file.name
-        fileChunkList.push(chunkFile);
+        fileChunkList.push({
+          chunk: chunkFile,
+          percentage: 0,
+        });
         cur += size;
       }
       this.fileList = fileChunkList
@@ -53,14 +65,19 @@ export default {
       return new Promise(resolve => {
         const data = new FormData()
         // the blob
-        data.append('chunk', file)
+        data.append('chunk', file.chunk)
         // file name
         data.append('name', this.file.name)
         // index
         data.append('index', index)
         // total length
         data.append('total', this.fileList.length)
-        axios.post('http://localhost:3000/upload', data).then(res=> {
+        axios.post('http://localhost:3000/upload', data, {
+          onUploadProgress: (progressEvent) => {
+            // update percentage
+            this.fileList[index].percentage = parseInt(String((progressEvent.loaded / progressEvent.total) * 100))
+          }
+        }).then(res=> {
           resolve(res)
         })
       })

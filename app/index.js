@@ -7,6 +7,7 @@ const formidable = require('formidable');
 const bodyparser = require('./bodyparser')
 const rename = require('./util').rename
 const merge = require('./util').merge;
+const verify = require('./util').verify
 
 router.post('/upload', async (ctx, next) => {
   // ctx.router available
@@ -47,11 +48,16 @@ router.post('/upload', async (ctx, next) => {
   await next();
 });
 
-router.post('/merge_upload', bodyparser, async (ctx, next) => {
+router.post('/upload_merge', bodyparser, async (ctx, next) => {
   // merge
   merge(ctx.request.body)
   ctx.set('Content-Type', 'application/json');
   ctx.body = ctx.request.body
+});
+// 验证接口，发送hash，如果已存在，则不需要再次上传，如果不存在，则返回已上传切片
+router.post('/upload_verify', bodyparser, async (ctx, next) => {
+  ctx.set('Content-Type', 'application/json');
+  ctx.body = verify(ctx.request.body)
 })
 
 app.use(cors)

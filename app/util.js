@@ -3,6 +3,7 @@ const path = require('path');
 const baseDirectory = path.join(__dirname, 'tmp')
 
 module.exports.rename = function(files, field) {
+  // use hash as name
   const keys = Object.keys(files)
   keys.forEach(key => {
     const file = files[key];
@@ -10,7 +11,7 @@ module.exports.rename = function(files, field) {
       fs.mkdirSync(baseDirectory)
     }
     // create new dir
-    fs.renameSync(file.path, path.join(baseDirectory, `${field.name}-${field.index}`))
+    fs.renameSync(file.path, path.join(baseDirectory, `${field.hash}-${field.index}`))
   })
 }
 
@@ -33,4 +34,19 @@ module.exports.merge = function(data) {
     const readStream = fs.createReadStream(path.join(baseDirectory,chunk))
     readStream.pipe(writeStream)
   })
+}
+
+module.exports.verify = function(data) {
+  // 服务器上存储的文件为
+  // 合并后的文件 hash-后缀
+  // 切片 hash-index
+  // first check if file exist
+  const extractExt = filename =>
+    filename.slice(filename.lastIndexOf("."), filename.length); // 提取后缀名
+  const fileName = data.hash + extractExt(data.name)
+  if(fs.existsSync(path.join(baseDirectory, fileName))) {
+    // 上传已经完成
+  } else {
+    // 上传没有完成，查找所有切片并返回
+  }
 }

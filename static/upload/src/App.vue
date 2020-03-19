@@ -28,7 +28,7 @@ export default {
     // 总体百分比由每个blob百分比* size/totalSize计算
     percentage() {
       return this.fileList.length === 0 ? 0 : this.fileList.reduce((pre, item)=>{
-        return pre + item.percentage * item.chunk.size / this.file.size
+        return pre + Number((item.percentage * item.chunk.size / this.file.size).toFixed(2))
       }, 0)
     }
   },
@@ -75,7 +75,7 @@ export default {
         axios.post('http://localhost:3000/upload', data, {
           onUploadProgress: (progressEvent) => {
             // update percentage
-            this.fileList[index].percentage = parseInt(String((progressEvent.loaded / progressEvent.total) * 100))
+            this.fileList[index].percentage = parseInt((progressEvent.loaded / progressEvent.total).toFixed(2)) * 100
           }
         }).then(res=> {
           resolve(res)

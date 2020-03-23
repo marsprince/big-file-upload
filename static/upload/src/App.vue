@@ -8,7 +8,7 @@
       <el-button style="margin-left: 10px;" size="small" type="success" @click="upload">上传到服务器</el-button>
       <div slot="tip" class="el-upload__tip">只能上传jpg/png文件，且不超过500kb</div>
     </el-upload>
-    <el-button type="primary" @click="cancel">暂停</el-button>
+    <el-button type="primary" @click="onClick">{{this.isStop ? '恢复':'暂停'}}</el-button>
     <el-progress :text-inside="true" :stroke-width="26" :percentage="percentage"></el-progress>
   </div>
 </template>
@@ -23,7 +23,9 @@ export default {
   data() {
     return {
       file: null,
-      fileList: []
+      fileList: [],
+      isStop: false,
+      compeleteList: []
     }
   },
   computed: {
@@ -35,6 +37,14 @@ export default {
     }
   },
   methods:{
+    onClick() {
+      if(this.isStop) {
+        this.resume()
+      } else {
+        this.stop()
+      }
+      this.isStop = !this.isStop
+    },
     // 恢复
     resume() {
       // 缓存hash
@@ -42,9 +52,16 @@ export default {
       axios.post('http://localhost:3000/upload_verify', {
         name: this.file.name,
         hash
+      }).then(res => {
+        const {data} = res;
+        if(data.code === 1) {
+          // 只上传未完成切片
+          this.compeleteList = data.list
+          this.upload()
+        }
       })
     },
-    cancel() {
+    stop() {
       this.fileList.forEach(item => {
         item.source.cancel()
       })
@@ -71,13 +88,14 @@ export default {
     },
     upload() {
       axios.defaults.headers.post['Content-Type'] = 'multipart/form-data';
-      const hash  = this.calculateHash();
-      Promise.all(this.fileList.map((file, index)=> {
+      const hash = this.calculateHash();
+      Promise.all(this.fileList.filter((item, index) => !this.compeleteList.includes(`${hash}-${index}`)).map((file, index)=> {
         return this.uploadFile(file, index, hash)
       })).then(res => {
         axios.post('http://localhost:3000/upload_merge', {
           name: this.file.name,
-          size
+          size,
+          hash
         })
       })
     },

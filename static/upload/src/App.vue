@@ -17,6 +17,7 @@
 import axios from 'axios'
 const size = 100 * 1024 * 1024 // 1k = 1024
 const CancelToken = axios.CancelToken;
+const maxRequestCount = 2;
 import SparkMD5 from 'spark-md5'
 
 export default {
@@ -116,6 +117,31 @@ export default {
         loadNext(0);
       })
     },
+    sendRequest(list) {
+      let i = maxRequestCount;
+      let index = 0;
+      const hash = this.hash;
+      return new Promise((resolve,reject) => {
+        const start = () => {
+          if(i>0 && index < list.length) {
+            i--;
+            const file = list[index];
+            this.uploadFile(file, index, hash).then(()=>{
+              i++;
+              index++;
+              if(index === list.length) {
+                resolve()
+              } else {
+                start()
+              }
+            }).catch(()=>{
+              reject()
+            })
+          }
+        }
+        start()
+      })
+    },
     async upload() {
       axios.defaults.headers.post['Content-Type'] = 'multipart/form-data';
       if(!this.hash) {
@@ -126,9 +152,8 @@ export default {
       if(this.failure) {
         list = list.filter(i => i.failure)
       }
-      Promise.all(list.filter((item, index) => !this.compeleteList.includes(`${hash}-${index}`)).map((file, index)=> {
-        return this.uploadFile(file, index, hash)
-      })).then(res => {
+      this.sendRequest(list.filter((item, index) => !this.compeleteList.includes(`${hash}-${index}`)))
+      .then(res => {
         axios.post('http://localhost:3000/upload_merge', {
           name: this.file.name,
           size,

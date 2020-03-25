@@ -14,10 +14,10 @@
 </template>
 
 <script>
-  import axios from 'axios'
-  const size = 100 * 1024 * 1024 // 1k = 1024
-  const CancelToken = axios.CancelToken;
-  import SparkMD5 from 'spark-md5'
+import axios from 'axios'
+const size = 100 * 1024 * 1024 // 1k = 1024
+const CancelToken = axios.CancelToken;
+import SparkMD5 from 'spark-md5'
 
 export default {
   name: 'app',
@@ -27,7 +27,8 @@ export default {
       fileList: [],
       isStop: false,
       compeleteList: [],
-      hash: null
+      hash: null,
+      failure: false
     }
   },
   computed: {
@@ -117,19 +118,32 @@ export default {
     },
     async upload() {
       axios.defaults.headers.post['Content-Type'] = 'multipart/form-data';
-      const hash = this.hash = await this.calculateHash();
-      Promise.all(this.fileList.filter((item, index) => !this.compeleteList.includes(`${hash}-${index}`)).map((file, index)=> {
+      if(!this.hash) {
+        this.hash = await this.calculateHash();
+      }
+      const hash = this.hash;
+      let list = this.fileList;
+      if(this.failure) {
+        list = list.filter(i => i.failure)
+      }
+      Promise.all(list.filter((item, index) => !this.compeleteList.includes(`${hash}-${index}`)).map((file, index)=> {
         return this.uploadFile(file, index, hash)
       })).then(res => {
         axios.post('http://localhost:3000/upload_merge', {
           name: this.file.name,
           size,
           hash
+        }).then(res => {
+          this.hash = null
+          this.failure = false
         })
+      }).catch(err => {
+        // 可以写一些重试策略
+        this.upload(true)
       })
     },
     uploadFile(file, index, hash) {
-      return new Promise(resolve => {
+      return new Promise((resolve,reject) => {
         const data = new FormData()
         // the blob
         data.append('chunk', file.chunk)
@@ -143,7 +157,8 @@ export default {
         data.append('hash', hash)
         // add cancel token
         const source = CancelToken.source();
-        this.fileList[index].source = source
+        this.fileList[index].source = source;
+        // if fail, save then retry
         axios.post('http://localhost:3000/upload', data, {
           cancelToken: source.token,
           onUploadProgress: (progressEvent) => {
@@ -151,7 +166,12 @@ export default {
             this.fileList[index].percentage = parseInt((progressEvent.loaded / progressEvent.total).toFixed(2)) * 100
           }
         }).then(res=> {
+          this.fileList[index].failure = false;
           resolve(res)
+        }).catch(err => {
+          this.fileList[index].failure = true;
+          this.failure = true
+          reject(err)
         })
       })
     }

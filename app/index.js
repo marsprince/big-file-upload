@@ -23,6 +23,11 @@ router.post('/upload', async (ctx, next) => {
   // } catch ( err ) {
   //
   // }
+  // if(Math.random()<0.5){
+  //   // 概率报错
+  //   ctx.status=500
+  //   return
+  // }
   const form = formidable({ multiples: true, uploadDir: __dirname, keepExtensions: true });
 
   // not very elegant, but that's for now if you don't want touse `koa-better-body`

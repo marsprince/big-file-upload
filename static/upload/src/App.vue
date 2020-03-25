@@ -17,6 +17,7 @@
   import axios from 'axios'
   const size = 100 * 1024 * 1024 // 1k = 1024
   const CancelToken = axios.CancelToken;
+  import SparkMD5 from 'spark-md5'
 
 export default {
   name: 'app',
@@ -25,7 +26,8 @@ export default {
       file: null,
       fileList: [],
       isStop: false,
-      compeleteList: []
+      compeleteList: [],
+      hash: null
     }
   },
   computed: {
@@ -47,11 +49,9 @@ export default {
     },
     // 恢复
     resume() {
-      // 缓存hash
-      const hash = this.calculateHash();
       axios.post('http://localhost:3000/upload_verify', {
         name: this.file.name,
-        hash
+        hash: this.hash
       }).then(res => {
         const {data} = res;
         if(data.code === 1) {
@@ -84,11 +84,40 @@ export default {
       return false
     },
     calculateHash() {
-      return this.file.name + this.file.size
+      const fileChunkList = this.fileList
+      const spark = new SparkMD5.ArrayBuffer();
+      return new Promise(resolve => {
+        // let percentage = 0;
+        let count = 0;
+        const loadNext = index => {
+          const reader = new FileReader();
+          reader.readAsArrayBuffer(fileChunkList[index].chunk);
+          reader.onload = e => {
+            count++;
+            spark.append(e.target.result);
+            if (count === fileChunkList.length) {
+              // self.postMessage({
+              //   percentage: 100,
+              //   hash: spark.end()
+              // });
+              // self.close();
+              resolve(spark.end())
+            } else {
+              // percentage += 100 / fileChunkList.length;
+              // self.postMessage({
+              //   percentage
+              // });
+              // 递归计算下一个切片
+              loadNext(count);
+            }
+          };
+        };
+        loadNext(0);
+      })
     },
-    upload() {
+    async upload() {
       axios.defaults.headers.post['Content-Type'] = 'multipart/form-data';
-      const hash = this.calculateHash();
+      const hash = this.hash = await this.calculateHash();
       Promise.all(this.fileList.filter((item, index) => !this.compeleteList.includes(`${hash}-${index}`)).map((file, index)=> {
         return this.uploadFile(file, index, hash)
       })).then(res => {
